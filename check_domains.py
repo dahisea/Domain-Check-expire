@@ -51,7 +51,7 @@ def main():
     
     for domain in domains:
         days_until_expiry, expiry_date = check_domain_expiry(domain)
-        if days_until_expiry is not None and 0 <= days_until_expiry <= 3:
+        if days_until_expiry is not None and 0 <= days_until_expiry <= 16:
             expiring_domains.append((domain, days_until_expiry, expiry_date))
     
     if expiring_domains:
@@ -63,7 +63,7 @@ def main():
         send_telegram_notification(message)
         print("Notification sent for expiring domains.")
     else:
-        print("No domains expiring in the next 3 days.")
+        print("No domains expiring in the next 16 days.")
 
 if __name__ == "__main__":
     main()
