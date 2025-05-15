@@ -4,6 +4,8 @@ on:
   schedule:
     - cron: '0 12 * * *'  # 每天UTC时间12:00运行（北京时间20:00）
   workflow_dispatch:  # 允许手动触发
+  watch:
+    types: [started]
 
 jobs:
   check-domains:
