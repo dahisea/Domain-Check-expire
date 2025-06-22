@@ -11,9 +11,14 @@ def get_domains_from_file(file_path):
     with open(file_path, 'r') as f:
         return [line.strip() for line in f if line.strip()]
 
-def check_domain_expiry(domain):
+def check_domain_status(domain):
     try:
         domain_info = whois(domain)
+        
+        # 检查域名是否未注册
+        if not domain_info.domain_name:
+            return "未注册", None, None
+            
         expiry_date = domain_info.expiration_date
         
         if isinstance(expiry_date, list):
@@ -22,10 +27,15 @@ def check_domain_expiry(domain):
         if expiry_date:
             today = datetime.datetime.now()
             days_until_expiry = (expiry_date - today).days
-            return days_until_expiry, expiry_date
+            return "已注册", days_until_expiry, expiry_date
+            
+        return "已注册(无到期信息)", None, None
     except Exception as e:
+        # 某些whois查询异常可能表示域名未注册
+        if "No match for" in str(e) or "NOT FOUND" in str(e):
+            return "未注册", None, None
         print(f"Error checking {domain}: {e}")
-    return None, None
+        return "查询失败", None, None
 
 def send_telegram_notification(message):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
@@ -48,22 +58,35 @@ def send_telegram_notification(message):
 def main():
     domains = get_domains_from_file('domains.txt')
     expiring_domains = []
+    unregistered_domains = []
     
     for domain in domains:
-        days_until_expiry, expiry_date = check_domain_expiry(domain)
-        if days_until_expiry is not None and 0 <= days_until_expiry <= 16:
+        status, days_until_expiry, expiry_date = check_domain_status(domain)
+        
+        if status == "未注册":
+            unregistered_domains.append(domain)
+        elif status == "已注册" and days_until_expiry is not None and 0 <= days_until_expiry <= 16:
             expiring_domains.append((domain, days_until_expiry, expiry_date))
     
+    message_parts = []
+    
+    if unregistered_domains:
+        message_parts.append("<b>🔄 未注册域名 🔄</b>\n")
+        message_parts.extend([f"• {domain}" for domain in unregistered_domains])
+        message_parts.append("")  # 空行分隔
+    
     if expiring_domains:
-        message = "<b>⚠️ 域名即将到期通知 ⚠️</b>\n\n"
+        message_parts.append("<b>⚠️ 即将到期域名 ⚠️</b>\n")
         for domain, days, expiry in expiring_domains:
-            message += f"<b>{domain}</b> 将在 <b>{days}</b> 天后到期\n"
-            message += f"到期时间: {expiry.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        
-        send_telegram_notification(message)
-        print("Notification sent for expiring domains.")
+            message_parts.append(f"• <b>{domain}</b> 将在 <b>{days}</b> 天后到期")
+            message_parts.append(f"  到期时间: {expiry.strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    if message_parts:
+        full_message = "\n".join(message_parts)
+        send_telegram_notification(full_message)
+        print("Notification sent.")
     else:
-        print("No domains expiring in the next 16 days.")
+        print("No unregistered or expiring domains to report.")
 
 if __name__ == "__main__":
     main()
