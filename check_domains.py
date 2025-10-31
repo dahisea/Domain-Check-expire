@@ -38,11 +38,26 @@ def check_domain_status(domain: str) -> Tuple[str, Optional[int], Optional[datet
         data = result.get('data', {})
         
         # 检查域名状态
-        domain_status = data.get('Domain Status', '')
+        domain_status = data.get('Domain Status', '').lower()
         
         # 如果域名状态为空或包含未注册的标识，认为域名未注册
-        if not domain_status or 'available' in domain_status.lower():
+        if not domain_status or 'available' in domain_status:
             return "未注册", None, None
+        
+        # 检查特殊状态（赎回期、删除期等）
+        special_statuses = {
+            'redemptionperiod': '赎回期',
+            'redemption': '赎回期',
+            'pendingdelete': '删除期',
+            'pending delete': '删除期',
+            'autorenewperiod': '自动续费期',
+            'renewperiod': '续费期',
+        }
+        
+        for status_key, status_name in special_statuses.items():
+            if status_key in domain_status.replace(' ', ''):
+                # 处于特殊状态，仍然解析到期时间
+                return f"已注册({status_name})", None, None
         
         # 获取到期时间
         expiration_time_str = data.get('Expiration Time', '')
