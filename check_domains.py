@@ -50,22 +50,34 @@ def check_domain_status(domain: str) -> Tuple[str, Optional[int], Optional[datet
         if not expiration_time_str:
             return "已注册(无到期信息)", None, None
         
-        # 解析到期时间 (格式: 2026-07-19T16:52:20Z)
-        try:
-            expiry_date = datetime.datetime.strptime(
-                expiration_time_str.strip(), 
-                '%Y-%m-%dT%H:%M:%SZ'
-            )
-            
-            # 计算距离到期的天数
-            today = datetime.datetime.now()
-            days_until_expiry = (expiry_date - today).days
-            
-            return "已注册", days_until_expiry, expiry_date
-            
-        except ValueError as e:
-            print(f"解析到期时间失败 {domain}: {e}")
+        # 解析到期时间 (支持多种格式)
+        time_formats = [
+            '%Y-%m-%dT%H:%M:%SZ',           # 2026-07-19T16:52:20Z
+            '%Y-%m-%dT%H:%M:%S.%fZ',        # 2032-05-03T23:59:59.0Z
+            '%Y-%m-%d %H:%M:%S',            # 2026-04-02 21:17:57
+            '%Y-%m-%dT%H:%M:%S',            # 2026-07-19T16:52:20 (无Z)
+        ]
+        
+        expiry_date = None
+        for fmt in time_formats:
+            try:
+                expiry_date = datetime.datetime.strptime(
+                    expiration_time_str.strip(), 
+                    fmt
+                )
+                break
+            except ValueError:
+                continue
+        
+        if expiry_date is None:
+            print(f"无法解析到期时间 {domain}: {expiration_time_str}")
             return "已注册(到期时间格式错误)", None, None
+        
+        # 计算距离到期的天数
+        today = datetime.datetime.now()
+        days_until_expiry = (expiry_date - today).days
+        
+        return "已注册", days_until_expiry, expiry_date
             
     except requests.exceptions.Timeout:
         print(f"查询超时 {domain}")
