@@ -2,7 +2,7 @@ name: Check Domain Expiry
 
 on:
   schedule:
-    - cron: '0 12 * * *'  # 每天UTC时间12:00运行（北京时间20:00）
+    - cron: '0 * * * *'  # 每天时间运行
   workflow_dispatch:  # 允许手动触发
   watch:
     types: [started]
